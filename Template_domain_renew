@@ -1,0 +1,53 @@
+# A Simple Shell Script to renew certs using docker certbot/dns-digitalocean.
+#
+#
+# To automate the renewal process, you need add this script as a cronjob.
+#
+# Instructions:
+# Provide a single line digitalocean API credentials in the following directory /.secrets/digitaloceanAPI.ini
+#
+# Example credentials file:
+#
+# dns_digitalocean_token = 0000111122223333444455556666777788889999aaaabbbbccccddddeeeeffff
+#
+#
+#
+#
+#
+#
+#
+# Write the domain you want to renew (in case of multiple domains seperate them with a comma,
+# AND if only the first domain is needed EMPTY the value of Other_Domains. Also supports wildcard)
+First_Domain="example.com"
+Other_Domains=",*.example.com"
+
+# Nginx proxy manager custom ssl folder name
+Folder_Name="npm-1"
+
+##################################################################################################
+##################################################################################################
+##################################################################################################
+##################################################################################################
+
+
+docker run --rm --name certbot \
+-v "/containers/npm/data/custom_ssl/certbot_container:/etc/letsencrypt" \
+-v "/.secrets/digitaloceanAPI.ini:/tmp/digitaloceanAPI.ini" \
+certbot/dns-digitalocean \
+certonly --dns-digitalocean \
+--dns-digitalocean-credentials /tmp/digitalocean.ini \
+--dns-digitalocean-propagation-seconds 5 \
+--server https://acme-v02.api.letsencrypt.org/directory \
+--register-unsafely-without-email --agree-tos --keep \
+-d $First_Domain$Other_Domains
+
+
+
+# Copy the new generated certificate to nginx custom ssl certs folder
+
+cd /containers/npm/data/custom_ssl/certbot_container/live/$First_Domain/ && cp fullchain.pem privkey.pem ../../../$Folder_Name/
+
+
+# Reload Nginx config
+
+docker exec npm_app_1 nginx -s reload
